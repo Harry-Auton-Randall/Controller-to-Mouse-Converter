@@ -19,11 +19,12 @@ int main() {
     int sensitivityDefault = 1500;
     int sensitivity = sensitivityDefault;
 
-    int screenX = GetSystemMetrics(SM_CXSCREEN);
-    int screenY = GetSystemMetrics(SM_CYSCREEN);
+    //int screenX = GetSystemMetrics(SM_CXSCREEN);
+    //int screenY = GetSystemMetrics(SM_CYSCREEN);
 
-    float cursorTargetX = screenX / 2;
-    float cursorTargetY = screenY / 2;
+    float unmovedDistX = 0;
+    float unmovedDistY = 0;
+    POINT cursorPoint;
 
     XINPUT_STATE state;
     DWORD result;
@@ -69,14 +70,26 @@ int main() {
         rtPressed = (state.Gamepad.bRightTrigger) > 127;
 
         //Moves mouse cursor
+        //OLD
+        // if ((stickX * stickX) + (stickY * stickY) >= 0.15f * 0.15f)
+        // {
+        //     cursorTargetX += (stickX * (static_cast<float>(sensitivity) / framerate));
+        //     cursorTargetY -= (stickY * (static_cast<float>(sensitivity) / framerate));
+        // }
+        // cursorTargetX = std::clamp(cursorTargetX, 0.0f, static_cast<float>(screenX));
+        // cursorTargetY = std::clamp(cursorTargetY, 0.0f, static_cast<float>(screenY));
+        // SetCursorPos(cursorTargetX, cursorTargetY);
+
+        //NEW
         if ((stickX * stickX) + (stickY * stickY) >= 0.15f * 0.15f)
         {
-            cursorTargetX += (stickX * (static_cast<float>(sensitivity) / framerate));
-            cursorTargetY -= (stickY * (static_cast<float>(sensitivity) / framerate));
+            GetCursorPos(&cursorPoint);
+            unmovedDistX += (stickX * (static_cast<float>(sensitivity) / framerate));
+            unmovedDistY -= (stickY * (static_cast<float>(sensitivity) / framerate));
+            SetCursorPos(cursorPoint.x + unmovedDistX, cursorPoint.y + unmovedDistY);
+            unmovedDistX -= static_cast<int>(unmovedDistX);
+            unmovedDistY -= static_cast<int>(unmovedDistY);
         }
-        cursorTargetX = std::clamp(cursorTargetX, 0.0f, static_cast<float>(screenX));
-        cursorTargetY = std::clamp(cursorTargetY, 0.0f, static_cast<float>(screenY));
-        SetCursorPos(cursorTargetX, cursorTargetY);
 
         //Sorts out mouse clicking, only sends inputs when controller inputs change
         inputL.mi.dwFlags = rbPressed ? MOUSEEVENTF_LEFTDOWN: MOUSEEVENTF_LEFTUP;
