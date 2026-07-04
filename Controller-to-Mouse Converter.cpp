@@ -13,12 +13,16 @@
 int main() {
     using namespace std::this_thread; // sleep_for, sleep_until
     using namespace std::chrono; // nanoseconds, system_clock, seconds
+    auto nextFrame = steady_clock::now();
 
     int framerateDefault = 144;
     int framerate = framerateDefault;
-    int sensitivityDefault = 1500;
+    int sensitivityDefault = 1200;
     int sensitivity = sensitivityDefault;
 
+    int maxScrollSpeedDefault = 20;
+    int maxScrollSpeed = maxScrollSpeedDefault;
+    int timeSinceLastScroll = 0;
     //int screenX = GetSystemMetrics(SM_CXSCREEN);
     //int screenY = GetSystemMetrics(SM_CYSCREEN);
 
@@ -35,11 +39,33 @@ int main() {
     bool rbPrev = false;
     bool rtPrev = false;
 
+    bool aPressed = false;
+    bool bPressed = false;
+    bool yPressed = false;
+    bool aPrev = false;
+    bool bPrev = false;
+    bool yPrev = false;
+    int aPressTime = 0;
+    int bPressTime = 0;
+
+    //clicking
     INPUT inputL = {};
     INPUT inputR = {};
+    INPUT inputM = {};
     inputL.type = INPUT_MOUSE;
-    
     inputR.type = INPUT_MOUSE;
+    inputM.type = INPUT_MOUSE;
+
+    //scrolling
+    INPUT inputSD = {};
+    INPUT inputSU = {};
+    inputSD.type = INPUT_MOUSE;
+    inputSU.type = INPUT_MOUSE;
+
+    inputSU.mi.dwFlags = MOUSEEVENTF_WHEEL;
+    inputSU.mi.mouseData = WHEEL_DELTA;
+    inputSD.mi.dwFlags = MOUSEEVENTF_WHEEL;
+    inputSD.mi.mouseData = -WHEEL_DELTA;
 
     std::cout << 
     "--CONTROLS--\n\n"
@@ -54,6 +80,8 @@ int main() {
 
     while (true)
     {
+        nextFrame += nanoseconds(1000000000 / framerate);
+
         //Get inputs from controller (verify's if it's connected, then stick, then bumper/trigger)
         result = XInputGetState(0, &state);
         if (result != ERROR_SUCCESS){
@@ -68,19 +96,11 @@ int main() {
 
         rbPressed = (state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0;
         rtPressed = (state.Gamepad.bRightTrigger) > 127;
+        aPressed = (state.Gamepad.wButtons & XINPUT_GAMEPAD_A);
+        bPressed = (state.Gamepad.wButtons & XINPUT_GAMEPAD_B);
+        yPressed = (state.Gamepad.wButtons & XINPUT_GAMEPAD_Y);
 
         //Moves mouse cursor
-        //OLD
-        // if ((stickX * stickX) + (stickY * stickY) >= 0.15f * 0.15f)
-        // {
-        //     cursorTargetX += (stickX * (static_cast<float>(sensitivity) / framerate));
-        //     cursorTargetY -= (stickY * (static_cast<float>(sensitivity) / framerate));
-        // }
-        // cursorTargetX = std::clamp(cursorTargetX, 0.0f, static_cast<float>(screenX));
-        // cursorTargetY = std::clamp(cursorTargetY, 0.0f, static_cast<float>(screenY));
-        // SetCursorPos(cursorTargetX, cursorTargetY);
-
-        //NEW
         if ((stickX * stickX) + (stickY * stickY) >= 0.15f * 0.15f)
         {
             GetCursorPos(&cursorPoint);
@@ -94,6 +114,7 @@ int main() {
         //Sorts out mouse clicking, only sends inputs when controller inputs change
         inputL.mi.dwFlags = rbPressed ? MOUSEEVENTF_LEFTDOWN: MOUSEEVENTF_LEFTUP;
         inputR.mi.dwFlags = rtPressed ? MOUSEEVENTF_RIGHTDOWN: MOUSEEVENTF_RIGHTUP;
+        inputM.mi.dwFlags = yPressed ? MOUSEEVENTF_MIDDLEDOWN: MOUSEEVENTF_MIDDLEUP;
         if (rbPressed != rbPrev)
         {
             SendInput(1, &inputL, sizeof(INPUT));
@@ -102,10 +123,68 @@ int main() {
         {
             SendInput(1, &inputR, sizeof(INPUT));
         }
+        if (yPressed != yPrev)
+        {
+            SendInput(1, &inputM, sizeof(INPUT));
+        }
 
-        sleep_for(nanoseconds(1000000000 / framerate));
+        //mouse scrolling
+        if (aPressed)
+        {
+            if (bPressTime > (framerate * 0.6f) && !aPrev)
+            {
+                aPressTime = bPressTime;
+            }
+            aPressTime += 1;
+
+            if (!aPrev)
+            {
+                SendInput(1, &inputSD, sizeof(INPUT));
+            }
+        }
+        else {aPressTime = 0;}
+
+        if (bPressed)
+        {
+            if (aPressTime > (framerate * 0.6f) && !bPrev)
+            {
+                bPressTime = aPressTime;
+            }
+            else {bPressTime += 1;}
+
+            if (!bPrev)
+            {
+                SendInput(1, &inputSU, sizeof(INPUT));
+            }
+        }
+        else {bPressTime = 0;}
+
+        //If either scroll button is held down long enough, it'll begin scrolling automatically
+        //Keeps track of how much time has passed since the last scroll, and uses the while loop
+        //to trigger as much scrolling as necessary
+        //(helps framerate independence, including when the scroll speed is faster than the framerate)
+        if (aPressTime > (framerate * 0.6f) || bPressTime > (framerate * 0.6f))
+        {
+            while (timeSinceLastScroll >= 1000000000 / maxScrollSpeed)
+            {
+                if (aPressed && bPressed) {}
+                else if (aPressed) {SendInput(1, &inputSD, sizeof(INPUT));}
+                else {SendInput(1, &inputSU, sizeof(INPUT));}
+                timeSinceLastScroll -= 1000000000 / maxScrollSpeed;
+            }
+            timeSinceLastScroll += 1000000000 / framerate;
+        }
+        else
+        {
+            timeSinceLastScroll = 1000000000 / maxScrollSpeed;
+        }
+
         rbPrev = rbPressed;
         rtPrev = rtPressed;
+        aPrev = aPressed;
+        bPrev = bPressed;
+        yPrev = yPressed;
+        sleep_until(nextFrame);
     }
 
     std::cout << "Exiting in 3 seconds...";
