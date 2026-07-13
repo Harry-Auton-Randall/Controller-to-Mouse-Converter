@@ -21,6 +21,7 @@ void helpText()
     "- B button = scroll up\n"
     "- A button = scroll up\n"
     "- Y button = scroll wheel click\n"
+    "- X button = hold to enable keyboard controls\n"
     "(Keyboard)\n"
     "- O = options\n"
     "- H = help\n"
@@ -28,10 +29,86 @@ void helpText()
     "----------------\n"
     ;
 }
+void optionHelpText()
+{
+    std::cout << 
+    "--OPTIONS--\n\n"
+    "S = sensitivity\n"
+    "F = framerate\n"
+    "H = help\n"
+    "E = exit\n"
+    "----------------\n"
+    ;
+}
+
+int optionsIntChange()
+{
+    std::string inputStr;
+    int inputInt;
+
+    while (true)
+    {
+        std::cout << ">";
+        std::cin >> inputStr;
+        try
+        {
+            inputInt = std::stoi(inputStr);
+            return inputInt;
+        }
+        catch(std::exception e)
+        {
+            std::cout << "Not a valid input, please try again.\n";
+        }
+    }
+}
 
 void optionsMenu(int* sensPtr, int* framePtr)
 {
-    
+    std::string inputStr;
+    optionHelpText();
+
+    while (true)
+    {
+        std::cout << ">";
+        std::cin >> inputStr;
+        inputStr[0] = std::tolower(inputStr[0]);
+        if (inputStr == "e")
+        {
+            break;
+        }
+        else if (inputStr == "h")
+        {
+            optionHelpText();
+        }
+        else if (inputStr == "s")
+        {
+            std::cout <<
+            "Please enter a new value for the cursor's sensitivity.\n"
+            "(Current value: " + std::to_string(*sensPtr) + ")\n"
+            ;
+            *sensPtr = optionsIntChange();
+            std::cout << "Sensitivity set to " + std::to_string(*sensPtr) + ".\n"
+            "----------------\n";
+        }
+        else if (inputStr == "f")
+        {
+            std::cout <<
+            "Please enter a new value for the program's framerate.\n"
+            "(Current value: " + std::to_string(*framePtr) + ")\n"
+            ;
+            *framePtr = optionsIntChange();
+            std::cout << "Framerate set to " + std::to_string(*framePtr) + ".\n"
+            "----------------\n";
+        }
+        else
+        {
+            std::cout << "Not a valid input, please try again.\n";
+        }
+    }
+    std::cout << 
+    "Options exited.\n"
+    "----------------\n"
+    ;
 }
 
 int main() {
@@ -42,7 +119,7 @@ int main() {
     int framerateDefault = 144;
     int framerate = framerateDefault;
     int* frameratePtr = &framerate;
-    int sensitivityDefault = 1200;
+    int sensitivityDefault = 1000;
     int sensitivity = sensitivityDefault;
     int* sensitivityPtr = &sensitivity;
 
@@ -68,6 +145,7 @@ int main() {
     bool aPressed = false;
     bool bPressed = false;
     bool yPressed = false;
+    bool xPressed = false;
     bool aPrev = false;
     bool bPrev = false;
     bool yPrev = false;
@@ -105,29 +183,31 @@ int main() {
         nextFrame += nanoseconds(1000000000 / framerate);
 
         //checks for keyboard presses
-        if(GetKeyState('H') & 0x8000)
+        if (state.Gamepad.wButtons & XINPUT_GAMEPAD_X)
         {
-            if (!hPressed)
+            if(GetKeyState('H') & 0x8000)
             {
-                helpText();
+                if (!hPressed)
+                {
+                    helpText();
+                }
+                hPressed = true;
             }
-            hPressed = true;
+            else
+            {
+                hPressed = false;
+            
+                if(GetKeyState('O') & 0x8000)
+                {
+                    optionsMenu(sensitivityPtr, frameratePtr);
+                }
+                else if(GetKeyState('E') & 0x8000)
+                {
+                    std::cout << "Exit button pressed.\n";
+                    break;
+                }
+            }
         }
-        else
-        {
-            hPressed = false;
-        
-            if(GetKeyState('O') & 0x8000)
-            {
-                optionsMenu(sensitivityPtr, frameratePtr);
-            }
-            else if(GetKeyState('E') & 0x8000)
-            {
-                std::cout << "Exit button pressed.\n";
-                break;
-            }
-        }
-
 
         //Get inputs from controller (verify's if it's connected, then stick, then bumper/trigger)
         result = XInputGetState(0, &state);
@@ -146,6 +226,7 @@ int main() {
         aPressed = (state.Gamepad.wButtons & XINPUT_GAMEPAD_A);
         bPressed = (state.Gamepad.wButtons & XINPUT_GAMEPAD_B);
         yPressed = (state.Gamepad.wButtons & XINPUT_GAMEPAD_Y);
+        //xPressed = (state.Gamepad.wButtons & XINPUT_GAMEPAD_X);
 
         //Moves mouse cursor
         if ((stickX * stickX) + (stickY * stickY) >= 0.15f * 0.15f)
