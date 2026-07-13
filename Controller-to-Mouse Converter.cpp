@@ -10,6 +10,30 @@
 
 #include <algorithm> //clamp
 
+void helpText()
+{
+    std::cout << 
+    "--CONTROLS--\n\n"
+    "(Controller)\n"
+    "- Right stick = move\n"
+    "- Right bumper = left click\n"
+    "- Right trigger = right click\n"
+    "- B button = scroll up\n"
+    "- A button = scroll up\n"
+    "- Y button = scroll wheel click\n"
+    "(Keyboard)\n"
+    "- O = options\n"
+    "- H = help\n"
+    "- E = exit\n"
+    "----------------\n"
+    ;
+}
+
+void optionsMenu(int* sensPtr, int* framePtr)
+{
+    
+}
+
 int main() {
     using namespace std::this_thread; // sleep_for, sleep_until
     using namespace std::chrono; // nanoseconds, system_clock, seconds
@@ -17,8 +41,10 @@ int main() {
 
     int framerateDefault = 144;
     int framerate = framerateDefault;
+    int* frameratePtr = &framerate;
     int sensitivityDefault = 1200;
     int sensitivity = sensitivityDefault;
+    int* sensitivityPtr = &sensitivity;
 
     int maxScrollSpeedDefault = 20;
     int maxScrollSpeed = maxScrollSpeedDefault;
@@ -67,20 +93,41 @@ int main() {
     inputSD.mi.dwFlags = MOUSEEVENTF_WHEEL;
     inputSD.mi.mouseData = -WHEEL_DELTA;
 
-    std::cout << 
-    "--CONTROLS--\n\n"
-    //"(Controller)\n"
-    "- Right stick = move\n"
-    "- Right bumper = left click\n"
-    "- Right trigger = right click\n"
-    //"(Keyboard)\n"
-    //"- S = settings\n"
-    //"- E = exit"
-    ;
+    //key presses
+    bool hPressed = false;
+    bool hPrev = false;
+
+    helpText();
+    
 
     while (true)
     {
         nextFrame += nanoseconds(1000000000 / framerate);
+
+        //checks for keyboard presses
+        if(GetKeyState('H') & 0x8000)
+        {
+            if (!hPressed)
+            {
+                helpText();
+            }
+            hPressed = true;
+        }
+        else
+        {
+            hPressed = false;
+        
+            if(GetKeyState('O') & 0x8000)
+            {
+                optionsMenu(sensitivityPtr, frameratePtr);
+            }
+            else if(GetKeyState('E') & 0x8000)
+            {
+                std::cout << "Exit button pressed.\n";
+                break;
+            }
+        }
+
 
         //Get inputs from controller (verify's if it's connected, then stick, then bumper/trigger)
         result = XInputGetState(0, &state);
@@ -184,10 +231,12 @@ int main() {
         aPrev = aPressed;
         bPrev = bPressed;
         yPrev = yPressed;
+        hPrev = hPressed;
         sleep_until(nextFrame);
     }
 
     std::cout << "Exiting in 3 seconds...";
     sleep_for(seconds(3));
+    return 0;
 
 }
