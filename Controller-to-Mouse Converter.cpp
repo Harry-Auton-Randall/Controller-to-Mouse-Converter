@@ -131,6 +131,8 @@ int main() {
 
     float unmovedDistX = 0;
     float unmovedDistY = 0;
+    int unmovedDistXInt;
+    int unmovedDistYInt;
     POINT cursorPoint;
 
     XINPUT_STATE state;
@@ -176,7 +178,6 @@ int main() {
     bool hPrev = false;
 
     helpText();
-    
 
     while (true)
     {
@@ -233,10 +234,12 @@ int main() {
         {
             GetCursorPos(&cursorPoint);
             unmovedDistX += (stickX * (static_cast<float>(sensitivity) / framerate));
-            unmovedDistY -= (stickY * (static_cast<float>(sensitivity) / framerate));
-            SetCursorPos(cursorPoint.x + unmovedDistX, cursorPoint.y + unmovedDistY);
-            unmovedDistX -= static_cast<int>(unmovedDistX);
-            unmovedDistY -= static_cast<int>(unmovedDistY);
+            unmovedDistY += (stickY * -1 * (static_cast<float>(sensitivity) / framerate));
+            unmovedDistXInt = static_cast<int>(unmovedDistX);
+            unmovedDistYInt = static_cast<int>(unmovedDistY);
+            SetCursorPos(cursorPoint.x + unmovedDistXInt, cursorPoint.y + unmovedDistYInt);
+            unmovedDistX -= unmovedDistXInt;
+            unmovedDistY -= unmovedDistYInt;
         }
 
         //Sorts out mouse clicking, only sends inputs when controller inputs change
